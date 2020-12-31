@@ -264,29 +264,13 @@ class Enemy(pygame.sprite.Sprite):
 class EnemyPlane1(Plane):
     def __init__(self, hp, pos, dx, dy, damage, fire_time):
         Enemy.__init__(self, hp, pos)
-        # self.load_image()
-        #
-        # self.rect = self.image.get_rect()
-        # self.rect.center = pos
-        # # self.rect.topleft = pos
-        #
-        # self.last_fire = 0
-        # self.fire_time = 400
-        # self.damage = 10
-        #
-        # self.dx = 1
-        # self.dy = 0
-        #
-        # self.hp = hp
-
-    def set_params(self, hp, dx, dy, damage, fire_time):
         self.hp = hp
-
+        self.hp_p = self.hp // 10
         self.fire_time = fire_time
         self.damage = damage
-
         self.dx = dx
         self.dy = dy
+
 
     def load_image(self):
         self.image = pygame.image.load("data/plane.png")
@@ -297,7 +281,11 @@ class EnemyPlane1(Plane):
         self.dy = dy
 
     def move(self):
-        pass
+        self.rect.x += self.dx
+        self.rect.y += self.dy
+        if self.rect.left <= 0 or self.rect.right >= WIDTH:
+            # self.rect.right = WIDTH - 1
+            self.dx = -self.dx
 
     def fire(self):
         now = pygame.time.get_ticks()
@@ -307,8 +295,8 @@ class EnemyPlane1(Plane):
             self.last_fire = now
 
     def draw_hp(self):
-        pygame.draw.rect(screen, (255, 255, 255), (self.rect.left + 20, self.rect.top - 24, self.rect.width - 40, 21))
-        gui.tprint(screen, f'HP: {self.hp}', (self.rect.x + 23, self.rect.y - 24))
+        pygame.draw.rect(screen, (255, 255, 255), (self.rect.left + 20, self.rect.top - 24, self.rect.width - 20, 23))
+        gui.tprint(screen, f'HP: ' + '|' * min(self.hp // self.hp_p + 1, 10), (self.rect.x + 23, self.rect.y - 24))
 
     def check_collision(self):
         hit_list = pygame.sprite.spritecollide(self, bullets_group, False)
@@ -356,12 +344,8 @@ background2_rect.y -= HEIGHT
 plane = Plane()
 plane_group = pygame.sprite.Group(plane)
 
-# # for i in range(5):
-# #     enemies_group.add(Enemy(100, (WIDTH // 5 * i + 50, HEIGHT // 8)))  # создаем врагов
-# enemies_group.add(EnemyPlane1(300, (WIDTH // 2, HEIGHT // 8)))
-# print(enemies_group)
-
-enemies_group = pygame.sprite.Group(EnemyPlane1(100, (100, 100), 1, 0, 10, 100))
+enemies_group = pygame.sprite.Group(EnemyPlane1(800, (100, 100), 3, 0, 10, 200))
+enemies_group.add(EnemyPlane1(200, (WIDTH - 100, 100), 1, 0, 40, 500))
 
 bullets_group = pygame.sprite.Group()
 bomb_group = pygame.sprite.Group()
@@ -444,7 +428,7 @@ while running:
     gui.tprint(screen, f'HP: {plane.hp}', (WIDTH - 100, HEIGHT - 46))
     gui.tprint(screen, '☺ ' * plane.lifes + '☻ ' * (3 - plane.lifes), (WIDTH - 103, HEIGHT - 26))
 
-    # print(clock.get_fps())
+    print(clock.get_fps())
     clock.tick(FPS)
 
     pygame.display.flip()
