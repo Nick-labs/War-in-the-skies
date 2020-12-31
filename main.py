@@ -1,7 +1,7 @@
 import pygame
-import random
-import math
-from functools import reduce
+
+# import random
+# import math
 
 SIZE = WIDTH, HEIGHT = 1024, 768
 
@@ -112,17 +112,29 @@ class Plane(pygame.sprite.Sprite):
         self.m_gun_ammo = min(MAX_M_GUN_AMMO, self.m_gun_ammo + m_gun_ammo)
         self.bombs = min(MAX_BOMBS, self.bombs + bombs)
 
-    def enemy_collision(self):
+    def respawn(self, xy=(WIDTH // 2, HEIGHT // 2)):
+        # enemies_group.empty() # Когда теряем жизнь, удаляем всех врагов с экрана
         self.lifes -= 1
-        self.rect.x = WIDTH // 2
-        self.rect.y = HEIGHT // 2
+        self.hp = 100
+
+        self.rect.x = xy[0]
+        self.rect.y = xy[1]
 
     def update(self):
+        hit_list = pygame.sprite.spritecollide(self, bullets_group, False)
+        if hit_list:
+            for bul in hit_list:
+                if bul.is_enemy:
+                    bul.kill()
+            self.hp -= sum(map(lambda bul: bul.damage * bul.is_enemy, hit_list))
+
         if self.hp <= 0:
-            self.lifes -= 1
-            self.hp = 100
+            self.respawn()
+
         if self.lifes <= 0:
             self.alife = False
+            self.hp = 0
+            self.kill()
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -139,8 +151,11 @@ class Bullet(pygame.sprite.Sprite):
         self.is_enemy = is_enemy
 
     def update(self):
-        self.rect.y -= BULLET_SPEED
-        if self.rect.top < 0:
+        if self.is_enemy:
+            self.rect.y += BULLET_SPEED
+        else:
+            self.rect.y -= BULLET_SPEED
+        if self.rect.bottom < 0 or self.rect.top > HEIGHT:
             self.kill()
 
 
@@ -183,20 +198,37 @@ class Enemy(pygame.sprite.Sprite):
         # self.rect.center = pos
         self.rect.topleft = pos
 
+        self.last_fire = 0
+
         self.hp = hp
 
-    def update(self):
+    def fire(self):
+        now = pygame.time.get_ticks()
+        if now - self.last_fire > 400:
+            gun_sound.play()
+            bullets_group.add(Bullet(self.rect.centerx - 1, self.rect.bottom + 4, (4, 8), 10, is_enemy=True))
+            self.last_fire = now
+
+    def draw_hp(self):
         pygame.draw.rect(screen, (255, 255, 255), (self.rect.left + 20, self.rect.top - 24, self.rect.width - 40, 21))
         gui.tprint(screen, f'HP: {self.hp}', (self.rect.x + 23, self.rect.y - 24))
 
-        hit_list = pygame.sprite.spritecollide(self, bullets_group, True)
-        plane_collision = pygame.sprite.spritecollide(self, plane_group, False)
-        if hit_list:
-            self.hp -= sum(map(lambda bul: bul.damage, hit_list))
+    def update(self):
+        self.fire()
 
+        self.draw_hp()
+
+        hit_list = pygame.sprite.spritecollide(self, bullets_group, False)
+        if hit_list:
+            for bul in hit_list:
+                if not bul.is_enemy:
+                    bul.kill()
+            self.hp -= sum(map(lambda bul: bul.damage * (not bul.is_enemy), hit_list))
+
+        plane_collision = pygame.sprite.spritecollide(self, plane_group, False)
         if plane_collision:
             self.hp = 0
-            plane_collision[0].enemy_collision()
+            plane_collision[0].respawn()
             self.kill()
 
         if self.hp <= 0:
@@ -228,10 +260,8 @@ plane_group = pygame.sprite.Group(plane)
 enemies_group = pygame.sprite.Group()
 for i in range(5):
     enemies_group.add(Enemy(100, (WIDTH // 5 * i + 50, HEIGHT // 8)))
-print(enemies_group)
 
 bullets_group = pygame.sprite.Group()
-
 bomb_group = pygame.sprite.Group()
 
 clock = pygame.time.Clock()
@@ -261,6 +291,7 @@ while running:
 
     plane.move(axis_0 * 5 * -(axis_3 - 1),
                axis_1 * 5 * -(axis_3 - 1))
+
     guns = joystick.get_button(GUN_BUTTON), joystick.get_button(M_GUN_BUTTON)
 
     if guns:
@@ -311,7 +342,7 @@ while running:
     gui.tprint(screen, f'HP: {plane.hp}', (WIDTH - 100, HEIGHT - 46))
     gui.tprint(screen, '☺ ' * plane.lifes + '☻ ' * (3 - plane.lifes), (WIDTH - 103, HEIGHT - 26))
 
-    print(clock.get_fps())
+    # print(clock.get_fps())
     clock.tick(FPS)
 
     pygame.display.flip()
