@@ -191,33 +191,53 @@ class Bomb(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, hp, pos):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load("data/plane.png")
-        self.image = pygame.transform.flip(self.image, False, True)
+        self.load_image()
 
         self.rect = self.image.get_rect()
-        # self.rect.center = pos
-        self.rect.topleft = pos
+        self.rect.center = pos
+        # self.rect.topleft = pos
 
         self.last_fire = 0
+        self.fire_time = 400
+        self.damage = 10
+
+        self.dx = 1
+        self.dy = 0
 
         self.hp = hp
 
+    def set_params(self, hp, dx, dy, damage, fire_time):
+        self.hp = hp
+
+        self.fire_time = fire_time
+        self.damage = damage
+
+        self.dx = dx
+        self.dy = dy
+
+    def load_image(self):
+        self.image = pygame.image.load("data/plane.png")
+        self.image = pygame.transform.flip(self.image, False, True)
+
+    def set_dx_dy(self, dx, dy):
+        self.dx = dx
+        self.dy = dy
+
+    def move(self):
+        pass
+
     def fire(self):
         now = pygame.time.get_ticks()
-        if now - self.last_fire > 400:
+        if now - self.last_fire > self.fire_time:
             gun_sound.play()
-            bullets_group.add(Bullet(self.rect.centerx - 1, self.rect.bottom + 4, (4, 8), 10, is_enemy=True))
+            bullets_group.add(Bullet(self.rect.centerx - 1, self.rect.bottom + 4, (4, 8), self.damage, is_enemy=True))
             self.last_fire = now
 
     def draw_hp(self):
         pygame.draw.rect(screen, (255, 255, 255), (self.rect.left + 20, self.rect.top - 24, self.rect.width - 40, 21))
         gui.tprint(screen, f'HP: {self.hp}', (self.rect.x + 23, self.rect.y - 24))
 
-    def update(self):
-        self.fire()
-
-        self.draw_hp()
-
+    def check_collision(self):
         hit_list = pygame.sprite.spritecollide(self, bullets_group, False)
         if hit_list:
             for bul in hit_list:
@@ -230,6 +250,85 @@ class Enemy(pygame.sprite.Sprite):
             self.hp = 0
             plane_collision[0].respawn()
             self.kill()
+
+    def update(self):
+        self.move()
+        self.fire()
+        self.check_collision()
+        self.draw_hp()
+
+        if self.hp <= 0:
+            self.kill()
+
+
+class EnemyPlane1(Plane):
+    def __init__(self, hp, pos, dx, dy, damage, fire_time):
+        Enemy.__init__(self, hp, pos)
+        # self.load_image()
+        #
+        # self.rect = self.image.get_rect()
+        # self.rect.center = pos
+        # # self.rect.topleft = pos
+        #
+        # self.last_fire = 0
+        # self.fire_time = 400
+        # self.damage = 10
+        #
+        # self.dx = 1
+        # self.dy = 0
+        #
+        # self.hp = hp
+
+    def set_params(self, hp, dx, dy, damage, fire_time):
+        self.hp = hp
+
+        self.fire_time = fire_time
+        self.damage = damage
+
+        self.dx = dx
+        self.dy = dy
+
+    def load_image(self):
+        self.image = pygame.image.load("data/plane.png")
+        self.image = pygame.transform.flip(self.image, False, True)
+
+    def set_dx_dy(self, dx, dy):
+        self.dx = dx
+        self.dy = dy
+
+    def move(self):
+        pass
+
+    def fire(self):
+        now = pygame.time.get_ticks()
+        if now - self.last_fire > self.fire_time:
+            gun_sound.play()
+            bullets_group.add(Bullet(self.rect.centerx - 1, self.rect.bottom + 4, (4, 8), self.damage, is_enemy=True))
+            self.last_fire = now
+
+    def draw_hp(self):
+        pygame.draw.rect(screen, (255, 255, 255), (self.rect.left + 20, self.rect.top - 24, self.rect.width - 40, 21))
+        gui.tprint(screen, f'HP: {self.hp}', (self.rect.x + 23, self.rect.y - 24))
+
+    def check_collision(self):
+        hit_list = pygame.sprite.spritecollide(self, bullets_group, False)
+        if hit_list:
+            for bul in hit_list:
+                if not bul.is_enemy:
+                    bul.kill()
+            self.hp -= sum(map(lambda bul: bul.damage * (not bul.is_enemy), hit_list))
+
+        plane_collision = pygame.sprite.spritecollide(self, plane_group, False)
+        if plane_collision:
+            self.hp = 0
+            plane_collision[0].respawn()
+            self.kill()
+
+    def update(self):
+        self.move()
+        self.fire()
+        self.check_collision()
+        self.draw_hp()
 
         if self.hp <= 0:
             self.kill()
@@ -257,9 +356,12 @@ background2_rect.y -= HEIGHT
 plane = Plane()
 plane_group = pygame.sprite.Group(plane)
 
-enemies_group = pygame.sprite.Group()
-for i in range(5):
-    enemies_group.add(Enemy(100, (WIDTH // 5 * i + 50, HEIGHT // 8)))
+# # for i in range(5):
+# #     enemies_group.add(Enemy(100, (WIDTH // 5 * i + 50, HEIGHT // 8)))  # создаем врагов
+# enemies_group.add(EnemyPlane1(300, (WIDTH // 2, HEIGHT // 8)))
+# print(enemies_group)
+
+enemies_group = pygame.sprite.Group(EnemyPlane1(100, (100, 100), 1, 0, 10, 100))
 
 bullets_group = pygame.sprite.Group()
 bomb_group = pygame.sprite.Group()
