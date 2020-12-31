@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+from functools import reduce
 
 SIZE = WIDTH, HEIGHT = 1024, 768
 
@@ -51,7 +52,6 @@ class Plane(pygame.sprite.Sprite):
         self.rect.center = (WIDTH // 2, HEIGHT // 2)
 
         self.alife = True
-
         self.hp = 100
         self.lifes = START_LIFES
 
@@ -71,9 +71,6 @@ class Plane(pygame.sprite.Sprite):
 
         if self.rect.left + self.dx < 0:
             self.rect.left = 0
-            self.hp -= 40
-            self.rect.x = WIDTH // 2
-            self.rect.y = HEIGHT // 2
         elif self.rect.right + self.dx > WIDTH:
             self.rect.right = WIDTH
         elif self.dx > 1 or self.dx < -1:
@@ -91,13 +88,13 @@ class Plane(pygame.sprite.Sprite):
             now = pygame.time.get_ticks()
             if now - self.last_gun_fire > 400 and guns[0] and self.gun_ammo > 0:
                 gun_sound.play()
-                bullets_group.add(Bullet(plane.rect.centerx - 1, plane.rect.top + 2, (4, 8), is_enemy=False))
+                bullets_group.add(Bullet(plane.rect.centerx - 1, plane.rect.top + 2, (4, 8), 40, is_enemy=False))
                 self.gun_ammo -= 1
                 self.last_gun_fire = now
             if now - self.last_m_gun_fire > 100 and guns[1] and self.m_gun_ammo > 0:
                 m_gun_sound.play()
-                bullets_group.add(Bullet(plane.rect.left + 30, plane.rect.top + 24, (3, 6), is_enemy=False))
-                bullets_group.add(Bullet(plane.rect.left + 65, plane.rect.top + 24, (3, 6), is_enemy=False))
+                bullets_group.add(Bullet(plane.rect.left + 30, plane.rect.top + 24, (3, 6), 10, is_enemy=False))
+                bullets_group.add(Bullet(plane.rect.left + 65, plane.rect.top + 24, (3, 6), 10, is_enemy=False))
                 self.m_gun_ammo -= 2
                 self.last_m_gun_fire = now
 
@@ -115,23 +112,29 @@ class Plane(pygame.sprite.Sprite):
         self.m_gun_ammo = min(MAX_M_GUN_AMMO, self.m_gun_ammo + m_gun_ammo)
         self.bombs = min(MAX_BOMBS, self.bombs + bombs)
 
+    def enemy_collision(self):
+        self.lifes -= 1
+        self.rect.x = WIDTH // 2
+        self.rect.y = HEIGHT // 2
+
     def update(self):
         if self.hp <= 0:
             self.lifes -= 1
             self.hp = 100
         if self.lifes <= 0:
-            self.kill()
             self.alife = False
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, size, is_enemy=False):
+    def __init__(self, x, y, size, damage, is_enemy=False):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface(size)
         self.image.fill(GREEN)
         self.rect = self.image.get_rect()
         self.rect.bottom = y
         self.rect.centerx = x
+
+        self.damage = damage
 
         self.is_enemy = is_enemy
 
@@ -170,6 +173,36 @@ class Bomb(pygame.sprite.Sprite):
                 self.rect.y += BACKGROUND_SPEED
 
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, hp, pos):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load("data/plane.png")
+        self.image = pygame.transform.flip(self.image, False, True)
+
+        self.rect = self.image.get_rect()
+        # self.rect.center = pos
+        self.rect.topleft = pos
+
+        self.hp = hp
+
+    def update(self):
+        pygame.draw.rect(screen, (255, 255, 255), (self.rect.left + 20, self.rect.top - 24, self.rect.width - 40, 21))
+        gui.tprint(screen, f'HP: {self.hp}', (self.rect.x + 23, self.rect.y - 24))
+
+        hit_list = pygame.sprite.spritecollide(self, bullets_group, True)
+        plane_collision = pygame.sprite.spritecollide(self, plane_group, False)
+        if hit_list:
+            self.hp -= sum(map(lambda bul: bul.damage, hit_list))
+
+        if plane_collision:
+            self.hp = 0
+            plane_collision[0].enemy_collision()
+            self.kill()
+
+        if self.hp <= 0:
+            self.kill()
+
+
 pygame.init()
 pygame.joystick.init()
 pygame.mixer.init()
@@ -178,6 +211,8 @@ joystick = pygame.joystick.Joystick(0)
 
 screen = pygame.display.set_mode(SIZE)
 pygame.display.set_caption("Joystick Game")
+
+gui = GUI()
 
 background1 = pygame.transform.scale(pygame.image.load("data/water.jpg"), SIZE)
 background2 = background1.__copy__()
@@ -190,11 +225,14 @@ background2_rect.y -= HEIGHT
 plane = Plane()
 plane_group = pygame.sprite.Group(plane)
 
+enemies_group = pygame.sprite.Group()
+for i in range(5):
+    enemies_group.add(Enemy(100, (WIDTH // 5 * i + 50, HEIGHT // 8)))
+print(enemies_group)
+
 bullets_group = pygame.sprite.Group()
 
 bomb_group = pygame.sprite.Group()
-
-gui = GUI()
 
 clock = pygame.time.Clock()
 
@@ -224,6 +262,7 @@ while running:
     plane.move(axis_0 * 5 * -(axis_3 - 1),
                axis_1 * 5 * -(axis_3 - 1))
     guns = joystick.get_button(GUN_BUTTON), joystick.get_button(M_GUN_BUTTON)
+
     if guns:
         plane.fire(guns)
 
@@ -251,6 +290,9 @@ while running:
     bullets_group.update()
     bullets_group.draw(screen)
 
+    enemies_group.update()
+    enemies_group.draw(screen)
+
     plane_group.update()
     plane_group.draw(screen)
 
@@ -261,6 +303,7 @@ while running:
     gui.tprint(screen, f'AMMO1: {plane.gun_ammo}', (3, HEIGHT - 89))
     gui.tprint(screen, f'AMMO2: {plane.m_gun_ammo}', (3, HEIGHT - 66))
     gui.tprint(screen, f'BOMBS: {plane.bombs}', (3, HEIGHT - 43))
+    gui.tprint(screen, f'ENM HP: ?', (3, HEIGHT - 20))
 
     pygame.draw.rect(screen, (0, 0, 0), (WIDTH - 110, HEIGHT - 55, WIDTH, HEIGHT))
     pygame.draw.rect(screen, (255, 255, 255), (WIDTH - 105, HEIGHT - 50, WIDTH, HEIGHT))
@@ -268,7 +311,7 @@ while running:
     gui.tprint(screen, f'HP: {plane.hp}', (WIDTH - 100, HEIGHT - 46))
     gui.tprint(screen, '☺ ' * plane.lifes + '☻ ' * (3 - plane.lifes), (WIDTH - 103, HEIGHT - 26))
 
-    # print(clock.get_fps())
+    print(clock.get_fps())
     clock.tick(FPS)
 
     pygame.display.flip()
