@@ -252,12 +252,14 @@ class Enemy(pygame.sprite.Sprite):
             self.kill()
 
     def update(self):
+        global score
         self.move()
         self.fire()
         self.check_collision()
         self.draw_hp()
 
         if self.hp <= 0:
+            score += 1
             self.kill()
 
 
@@ -270,7 +272,6 @@ class EnemyPlane1(Plane):
         self.damage = damage
         self.dx = dx
         self.dy = dy
-
 
     def load_image(self):
         self.image = pygame.image.load("data/plane.png")
@@ -313,6 +314,8 @@ class EnemyPlane1(Plane):
             self.kill()
 
     def update(self):
+        global score
+
         self.move()
         self.fire()
         self.check_collision()
@@ -320,6 +323,7 @@ class EnemyPlane1(Plane):
 
         if self.hp <= 0:
             self.kill()
+            score += 1
 
 
 pygame.init()
@@ -347,11 +351,14 @@ background2_rect.y -= HEIGHT
 plane = Plane()
 plane_group = pygame.sprite.Group(plane)
 
-enemies_group = pygame.sprite.Group(EnemyPlane1(800, (100, 100), 3, 0, 10, 200))
-enemies_group.add(EnemyPlane1(200, (WIDTH - 100, 100), 1, 0, 40, 500))
+enemies_group = pygame.sprite.Group()
+# for i in range(5):
+#     enemies_group.add(EnemyPlane1(100, (WIDTH // 7 + i * WIDTH // 7, 100), i, 0, i * 5, 100 * (i + 1)))
 
 bullets_group = pygame.sprite.Group()
 bomb_group = pygame.sprite.Group()
+
+score = 0
 
 clock = pygame.time.Clock()
 
@@ -371,8 +378,16 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.JOYBUTTONDOWN and joystick.get_button(RELOAD_BUTTON):
-            plane.add_ammo(gun_ammo=30, m_gun_ammo=100, bombs=2)
+        if event.type == pygame.JOYBUTTONDOWN:
+            if joystick.get_button(RELOAD_BUTTON):
+                plane.add_ammo(gun_ammo=30, m_gun_ammo=100, bombs=2)
+            # if joystick.get_button(10):
+            #     for i in range(5 - len(enemies_group)):
+            #         print(i)
+            #         enemies_group.add(EnemyPlane1(100, (100, 100), i + 1, 0, (i + 1) * 5, 100 * (i + 1)))
+    if not enemies_group:
+        for i in range(5):
+            enemies_group.add(EnemyPlane1(100, (100, 100), i + 1, 0, (i + 1) * 5, 100 * (i + 1)))
 
     axis_0 = joystick.get_axis(0)
     axis_1 = joystick.get_axis(1)
@@ -423,7 +438,7 @@ while running:
     gui.tprint(screen, f'AMMO1: {plane.gun_ammo}', (3, HEIGHT - 89))
     gui.tprint(screen, f'AMMO2: {plane.m_gun_ammo}', (3, HEIGHT - 66))
     gui.tprint(screen, f'BOMBS: {plane.bombs}', (3, HEIGHT - 43))
-    gui.tprint(screen, f'ENM HP: ?', (3, HEIGHT - 20))
+    gui.tprint(screen, f'SCORE: {score}', (3, HEIGHT - 20))
 
     pygame.draw.rect(screen, (0, 0, 0), (WIDTH - 110, HEIGHT - 55, WIDTH, HEIGHT))
     pygame.draw.rect(screen, (255, 255, 255), (WIDTH - 105, HEIGHT - 50, WIDTH, HEIGHT))
@@ -431,7 +446,7 @@ while running:
     gui.tprint(screen, f'HP: {plane.hp}', (WIDTH - 100, HEIGHT - 46))
     gui.tprint(screen, '☺ ' * plane.lifes + '☻ ' * (3 - plane.lifes), (WIDTH - 103, HEIGHT - 26))
 
-    print(clock.get_fps())
+    # print(clock.get_fps())
     clock.tick(FPS)
 
     pygame.display.flip()
