@@ -331,6 +331,9 @@ joystick = pygame.joystick.Joystick(0)
 screen = pygame.display.set_mode(SIZE)
 pygame.display.set_caption("Joystick Game")
 
+# screen.blit(pygame.image.load("data/fon.jpg", SIZE))
+
+
 gui = GUI()
 
 background1 = pygame.transform.scale(pygame.image.load("data/water.jpg"), SIZE)
