@@ -1,6 +1,5 @@
 import pygame
-
-# import random
+import random
 # import math
 
 SIZE = WIDTH, HEIGHT = 1024, 768
@@ -259,7 +258,6 @@ class Enemy(pygame.sprite.Sprite):
         self.draw_hp()
 
         if self.hp <= 0:
-            score += 1
             self.kill()
 
 
@@ -323,7 +321,7 @@ class EnemyPlane1(Plane):
 
         if self.hp <= 0:
             self.kill()
-            score += 1
+            score += self.hp_p * self.damage // 10
 
 
 pygame.init()
@@ -386,8 +384,13 @@ while running:
             #         print(i)
             #         enemies_group.add(EnemyPlane1(100, (100, 100), i + 1, 0, (i + 1) * 5, 100 * (i + 1)))
     if not enemies_group:
-        for i in range(5):
-            enemies_group.add(EnemyPlane1(100, (100, 100), i + 1, 0, (i + 1) * 5, 100 * (i + 1)))
+        for i in range(random.randint(1, 5)):
+            plane.add_ammo(gun_ammo=30, m_gun_ammo=100, bombs=2)
+            score += 50
+            enemies_group.add(EnemyPlane1(random.randint(1, 5) * 100,
+                                          (random.randint(100, WIDTH - 100),
+                                           50 + random.randint(1, 3) * 50),
+                                          random.randint(1, 5), 0, random.randint(1, 5) * 5, random.randint(2, 5) * 100))
 
     axis_0 = joystick.get_axis(0)
     axis_1 = joystick.get_axis(1)
@@ -446,7 +449,7 @@ while running:
     gui.tprint(screen, f'HP: {plane.hp}', (WIDTH - 100, HEIGHT - 46))
     gui.tprint(screen, '☺ ' * plane.lifes + '☻ ' * (3 - plane.lifes), (WIDTH - 103, HEIGHT - 26))
 
-    # print(clock.get_fps())
+    print(clock.get_fps())
     clock.tick(FPS)
 
     pygame.display.flip()
