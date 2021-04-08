@@ -343,16 +343,22 @@ def end_screen(score):
 
 
 pygame.init()
+pygame.joystick.init()
 pygame.mixer.init()
 
+print(pygame.joystick.get_count())
+
 gui = GUI()
+
+joystick = pygame.joystick.Joystick(0)
 
 clock = pygame.time.Clock()
 
 screen = pygame.display.set_mode(SIZE)
-pygame.display.set_caption("War in the skies")
+pygame.display.set_caption("Joystick Game")
 
 # screen.blit(pygame.image.load("data/fon.jpg", SIZE))
+
 
 start_screen()
 
@@ -388,23 +394,15 @@ pygame.mixer.Sound("data/sounds/plane.ogg").play(-1)
 running = True
 while running:
     for event in pygame.event.get():
-        buts = pygame.key.get_pressed()
         if event.type == pygame.QUIT:
             running = False
-        dx, dy = 0, 0
-        if buts[pygame.K_a]:
-            dx = -5
-        elif buts[pygame.K_d]:
-            dx = 5
-        if buts[pygame.K_w]:
-            dy = -5
-        elif buts[pygame.K_s]:
-            dy = 5
-        if buts[pygame.K_SPACE]:
-            guns = (1, 1)
-        else:
-            guns = (0, 0)
-
+        if event.type == pygame.JOYBUTTONDOWN:
+            if joystick.get_button(RELOAD_BUTTON):
+                plane.add_ammo(gun_ammo=30, m_gun_ammo=100, bombs=2)
+            # if joystick.get_button(10):
+            #     for i in range(5 - len(enemies_group)):
+            #         print(i)
+            #         enemies_group.add(EnemyPlane1(100, (100, 100), i + 1, 0, (i + 1) * 5, 100 * (i + 1)))
     if not enemies_group:
         for i in range(random.randint(1, 5)):
             plane.add_ammo(gun_ammo=30, m_gun_ammo=100, bombs=2)
@@ -415,9 +413,20 @@ while running:
                                           random.randint(1, 5), 0, random.randint(1, 5) * 5,
                                           random.randint(2, 5) * 100))
 
-    plane.move(dx, dy)
+    axis_0 = joystick.get_axis(0)
+    axis_1 = joystick.get_axis(1)
+    axis_3 = joystick.get_axis(3)
 
-    plane.fire(guns)
+    plane.move(axis_0 * 5 * (1 - axis_3),
+               axis_1 * 5 * (1 - axis_3))
+
+    guns = joystick.get_button(GUN_BUTTON), joystick.get_button(M_GUN_BUTTON)
+
+    if guns:
+        plane.fire(guns)
+
+    if joystick.get_button(BOMB_BUTTON):
+        plane.bomb()
 
     screen.fill(BLACK)
 
@@ -449,7 +458,7 @@ while running:
     pygame.draw.rect(screen, (0, 0, 0), (0, HEIGHT - 122, 110, HEIGHT))
     pygame.draw.rect(screen, (255, 255, 255), (0, HEIGHT - 117, 105, HEIGHT))
 
-    gui.tprint(screen, f'SPEED: {100}', (3, HEIGHT - 112))
+    gui.tprint(screen, f'SPEED: {(-axis_3 + 1) * 50:.0f}', (3, HEIGHT - 112))
     gui.tprint(screen, f'AMMO1: {plane.gun_ammo}', (3, HEIGHT - 89))
     gui.tprint(screen, f'AMMO2: {plane.m_gun_ammo}', (3, HEIGHT - 66))
     gui.tprint(screen, f'BOMBS: {plane.bombs}', (3, HEIGHT - 43))
